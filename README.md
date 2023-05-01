@@ -1,2 +1,1 @@
-READ MEEEE!!!!!!
-test
+第2回まで終了
