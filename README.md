@@ -1,4 +1,4 @@
-第4回まで終了
+第5回まで終了
 
 ## WebGL環境での実行
 - [公開URL](https://ichiharayuuma.github.io/puzzle_study/WebGL/WebGL/)
