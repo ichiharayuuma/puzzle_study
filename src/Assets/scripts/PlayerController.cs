@@ -124,7 +124,7 @@ public class PlayerController : MonoBehaviour
         bool is_set0 = boardContoroller.Settle(_position, (int)_puyocontrollers[0].GetPuyoType());
         Debug.Assert(is_set0);
 
-        bool is_set1 = boardContoroller.Settle(_position, (int)_puyocontrollers[1].GetPuyoType());
+        bool is_set1 = boardContoroller.Settle(CalcChildPuyoPos(_position,_rotate), (int)_puyocontrollers[1].GetPuyoType());
         Debug.Assert(is_set1);
 
         gameObject.SetActive(false);
@@ -148,6 +148,11 @@ public class PlayerController : MonoBehaviour
         if(Input.GetKeyDown(KeyCode.Z))
         {
             Rotate(false);
+        }
+
+        if (Input.GetKey(KeyCode.UpArrow))
+        {
+            QuickDrop();
         }
     }
 }
