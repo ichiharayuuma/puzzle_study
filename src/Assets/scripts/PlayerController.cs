@@ -17,8 +17,16 @@ public class PlayerController : MonoBehaviour
     [SerializeField] PuyoScript[] _puyocontrollers = new PuyoScript[2] { default!, default! };
     [SerializeField] BoardContoroller boardContoroller = default!;
 
+    AnimationController _animationController = new AnimationController();
     Vector2Int _position;
     RotState _rotate = RotState.Up;
+    Vector2Int _last_position;
+    RotState _last_rotate = RotState.Up;
+
+    const float TRANS_TIME = 0.05f;
+    const float ROT_TIME = 0.05f;
+
+    static readonly Vector2Int[] rotate_tbl = new Vector2Int[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
 
     void Start()
     {
@@ -41,31 +49,39 @@ public class PlayerController : MonoBehaviour
         return true;
     }
 
-    private bool Translate(bool is_right)
+    void SetTransition(Vector2Int pos, RotState rot, float time)//animationに移動先、時間を設定
     {
+        _last_position = _position;
+        _last_rotate = _rotate;
+
+        _position = pos;
+        _rotate = rot;
+
+        _animationController.Set(time);
+    }
+
+    private bool Translate(bool is_right)//平行移動
+    {
+        //仮想的に移動
         Vector2Int pos = _position + (is_right ? Vector2Int.right: Vector2Int.left);
         if (!CanMove(pos, _rotate)) return false;
 
-        _position= pos;
-
-        _puyocontrollers[0].SetPos(new Vector3((float)_position.x, (float)_position.y, 0.0f));
-        Vector2Int posChild = CalcChildPuyoPos(_position,_rotate);
-        _puyocontrollers[1].SetPos(new Vector3((float)posChild.x, (float)posChild.y, 0.0f));
+        //実際に移動
+        SetTransition(pos, _rotate, TRANS_TIME);
 
         return true;
     }
 
-    static readonly Vector2Int[] rotate_tbl = new Vector2Int[] {Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left};
-
-    private static Vector2Int CalcChildPuyoPos(Vector2Int pos, RotState rot)
+    private static Vector2Int CalcChildPuyoPos(Vector2Int pos, RotState rot)//子ぷよの回転先
     {
         return pos + rotate_tbl[(int)rot];
     }
 
-    bool Rotate(bool is_right)
+    bool Rotate(bool is_right)//回転
     {
         RotState rot = (RotState)(((int)_rotate + (is_right ? +1 : +3)) & 3);
 
+        //仮想的に移動。埋まったらずらす
         Vector2Int pos = _position;
         switch (rot)
         {
@@ -100,12 +116,8 @@ public class PlayerController : MonoBehaviour
 
         if(!CanMove(pos, rot)) return false;
 
-        _rotate= rot;
-        _position= pos;
-
-        _puyocontrollers[0].SetPos(new Vector3((float)_position.x,(float)_position.y, 0.0f));
-        Vector2Int posChild = CalcChildPuyoPos(_position,_rotate);
-        _puyocontrollers[1].SetPos(new Vector3((float)posChild.x,(float)posChild.y, 0.0f));
+        //実際に移動
+        SetTransition(pos, rot, ROT_TIME);
 
         return true;
     }
@@ -130,7 +142,7 @@ public class PlayerController : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    void Update()
+    void Control()
     {
         if (Input.GetKeyDown(KeyCode.RightArrow))
         {
@@ -145,7 +157,7 @@ public class PlayerController : MonoBehaviour
         {
             Rotate(true);
         }
-        if(Input.GetKeyDown(KeyCode.Z))
+        if (Input.GetKeyDown(KeyCode.Z))
         {
             Rotate(false);
         }
@@ -154,5 +166,40 @@ public class PlayerController : MonoBehaviour
         {
             QuickDrop();
         }
+    }
+
+    static Vector3 Interpolate(Vector2Int pos, RotState rot, Vector2Int pos_last, RotState rot_last, float rate)
+    {
+        //平行移動
+        Vector3 p = Vector3.Lerp(
+            new Vector3((float)pos.x, (float)pos.y, 0.0f),
+            new Vector3((float)pos_last.x, (float)pos_last.y, 0.0f), rate);
+
+        if (rot == RotState.Invalid) return p;
+
+        //回転
+        float theta0 = 0.5f * Mathf.PI * (float)(int)rot;
+        float theta1 = 0.5f * Mathf.PI * (float)(int)rot_last;
+        float theta = theta1 - theta0;
+
+        //近いほうへ
+        if(+Mathf.PI < theta) theta = theta - 2.0f * Mathf.PI;
+        if(theta < -Mathf.PI) theta = theta + 2.0f * Mathf.PI;
+
+        theta = theta0 + rate * theta;
+
+        return p + new Vector3(Mathf.Sin(theta), Mathf.Cos(theta), 0.0f);
+    }
+
+    void Update()
+    {
+        if(!_animationController.Update(Time.deltaTime))
+        {
+            Control();
+        }
+
+        float anim_rate = _animationController.GetNormalized();
+        _puyocontrollers[0].SetPos(Interpolate(_position, RotState.Invalid, _last_position, RotState.Invalid, anim_rate));//軸ぷよにはInvalidを設定
+        _puyocontrollers[1].SetPos(Interpolate(_position, _rotate, _last_position, _last_rotate, anim_rate));
     }
 }
