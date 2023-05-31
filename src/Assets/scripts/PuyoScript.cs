@@ -35,19 +35,19 @@ public class PuyoScript : MonoBehaviour
     [SerializeField] Renderer my_renderer = default!;
     PuyoType _type = PuyoType.Blank;
 
-    public void SetPuyoType(PuyoType type)
+    public void SetPuyoType(PuyoType type)//色をセット
     {
         _type = type;
 
         my_renderer.material.color = color_table[(int)_type];
     }
 
-    public PuyoType GetPuyoType()
+    public PuyoType GetPuyoType()//色を取得
     {
         return _type;
     }
 
-    public void SetPos(Vector3 pos)
+    public void SetPos(Vector3 pos)//場所を設定
     {
         this.transform.localPosition = pos;
     }
