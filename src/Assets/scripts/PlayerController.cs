@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -18,15 +19,26 @@ public class PlayerController : MonoBehaviour
     [SerializeField] BoardContoroller boardContoroller = default!;
 
     AnimationController _animationController = new AnimationController();
+    LogialInput logicalInput = new();
     Vector2Int _position;
     RotState _rotate = RotState.Up;
     Vector2Int _last_position;
     RotState _last_rotate = RotState.Up;
 
-    const float TRANS_TIME = 0.05f;
-    const float ROT_TIME = 0.05f;
+    const int TRANS_TIME = 3;
+    const int ROT_TIME = 3;
 
     static readonly Vector2Int[] rotate_tbl = new Vector2Int[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+
+    static readonly KeyCode[] key_code_tbl = new KeyCode[(int)LogialInput.Key.Max] 
+    {
+        KeyCode.RightArrow,
+        KeyCode.LeftArrow,
+        KeyCode.X,
+        KeyCode.Z,
+        KeyCode.UpArrow,
+        KeyCode.DownArrow,
+    };
 
     void Start()
     {
@@ -49,7 +61,7 @@ public class PlayerController : MonoBehaviour
         return true;
     }
 
-    void SetTransition(Vector2Int pos, RotState rot, float time)//animationに移動先、時間を設定
+    void SetTransition(Vector2Int pos, RotState rot, int time)//animationに移動先、時間を設定
     {
         _last_position = _position;
         _last_rotate = _rotate;
@@ -144,25 +156,25 @@ public class PlayerController : MonoBehaviour
 
     void Control()
     {
-        if (Input.GetKeyDown(KeyCode.RightArrow))
+        if (logicalInput.isRep(LogialInput.Key.Right))
         {
-            Translate(true);
+            if(Translate(true))     return;
         }
-        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        if (logicalInput.isRep(LogialInput.Key.Left))
         {
-            Translate(false);
-        }
-
-        if (Input.GetKeyDown(KeyCode.X))
-        {
-            Rotate(true);
-        }
-        if (Input.GetKeyDown(KeyCode.Z))
-        {
-            Rotate(false);
+            if(Translate(false))    return;
         }
 
-        if (Input.GetKey(KeyCode.UpArrow))
+        if (logicalInput.isTrg(LogialInput.Key.RotR))
+        {
+            if(Rotate(true))        return;
+        }
+        if (logicalInput.isTrg(LogialInput.Key.RotL))
+        {
+            if(Rotate(false))       return;
+        }
+
+        if (logicalInput.isRel(LogialInput.Key.QuickDrop))
         {
             QuickDrop();
         }
@@ -191,9 +203,29 @@ public class PlayerController : MonoBehaviour
         return p + new Vector3(Mathf.Sin(theta), Mathf.Cos(theta), 0.0f);
     }
 
-    void Update()
+    void UpdateInput()//入力を取り込む
     {
-        if(!_animationController.Update(Time.deltaTime))
+        LogialInput.Key inputDev = 0;//デバイス値
+
+        //キー取得
+        for(int i = 0; i< (int)LogialInput.Key.Max; i++)
+        {
+            if (Input.GetKey(key_code_tbl[i]))
+            {
+                inputDev |= (LogialInput.Key)(1 << i);
+                Console.WriteLine(inputDev.ToString());
+            }
+        }
+
+        logicalInput.Update(inputDev);
+    }
+
+    void FixedUpdate()
+    {
+        //入力を取り込む
+        UpdateInput();
+
+        if (!_animationController.Update())
         {
             Control();
         }
@@ -202,4 +234,22 @@ public class PlayerController : MonoBehaviour
         _puyocontrollers[0].SetPos(Interpolate(_position, RotState.Invalid, _last_position, RotState.Invalid, anim_rate));//軸ぷよにはInvalidを設定
         _puyocontrollers[1].SetPos(Interpolate(_position, _rotate, _last_position, _last_rotate, anim_rate));
     }
+
+    //void FixedUpdate()
+    //{
+    //    Console.WriteLine("update");
+    //    //入力を取り込む
+    //    UpdateInput();
+
+    //    //操作を受けて動かす
+    //    if (!_animationController.Update())
+    //    {
+    //        Control();
+    //    }
+
+    //    //表示
+    //    float anim_rate = _animationController.GetNormalized();
+    //    _puyocontrollers[0].SetPos(Interpolate(_position, RotState.Invalid, _last_position, RotState.Invalid, anim_rate));//軸ぷよにはInvalidを設定
+    //    _puyocontrollers[1].SetPos(Interpolate(_position, _rotate, _last_position, _last_rotate, anim_rate));
+    //}
 }
