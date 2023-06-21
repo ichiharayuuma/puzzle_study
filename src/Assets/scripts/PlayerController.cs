@@ -19,7 +19,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] BoardContoroller boardContoroller = default!;
 
     AnimationController _animationController = new AnimationController();
-    LogialInput logicalInput = new();
+    LogialInput _logicalInput = new();
     Vector2Int _position;
     RotState _rotate = RotState.Up;
     Vector2Int _last_position;
@@ -37,27 +37,44 @@ public class PlayerController : MonoBehaviour
 
     static readonly Vector2Int[] rotate_tbl = new Vector2Int[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
 
-    static readonly KeyCode[] key_code_tbl = new KeyCode[(int)LogialInput.Key.Max] 
-    {
-        KeyCode.RightArrow,
-        KeyCode.LeftArrow,
-        KeyCode.X,
-        KeyCode.Z,
-        KeyCode.UpArrow,
-        KeyCode.DownArrow,
-    };
-
     void Start()
     {
-        _puyocontrollers[0].SetPuyoType(PuyoType.Green);
-        _puyocontrollers[1].SetPuyoType(PuyoType.Red);
+       gameObject.SetActive(false);
+    }
 
-        _position = new Vector2Int(2, 12);
-        _rotate = RotState.Up;
+    public void SetLogicalInput(LogialInput reference)
+    {
+        _logicalInput = reference;
+    }
 
-        _puyocontrollers[0].SetPos(new Vector3((float)_position.x, (float)_position.y, 0.0f));
+    public bool Spawn(PuyoType axis, PuyoType child)
+    {
+        //出せるか確認
+        Vector2Int position = new(2, 12);//初期位置
+        RotState rotate = RotState.Up;//最初は上向き
+        if(!CanMove(position, rotate))
+        {
+            return false;
+        }
+
+        //パラメーターの初期化
+        _position = _last_position = position;
+        _rotate = _last_rotate = rotate;
+        _animationController.Set(1);
+        _fallCount = 0;
+        _groundFrame = GROUND_FRAMES;
+
+        //ぷよを出す
+        _puyocontrollers[0].SetPuyoType(axis);
+        _puyocontrollers[1].SetPuyoType(child);
+
+        _puyocontrollers[0].SetPos(new Vector3((float)_position.x,(float)_position.y, 0.0f));
         Vector2Int posChild = CalcChildPuyoPos(_position,_rotate);
-        _puyocontrollers[1].SetPos(new Vector3((float)posChild.x,(float)posChild.y, 0.0f));
+        _puyocontrollers[1].SetPos(new Vector3((float)posChild.x, (float)posChild.y, 0.0f));
+
+        gameObject.SetActive(true);
+
+        return true;
     }
 
     private bool CanMove(Vector2Int pos, RotState rot)
@@ -194,30 +211,30 @@ public class PlayerController : MonoBehaviour
 
     void Control()
     {
-        if(!Fall(logicalInput.isRaw(LogialInput.Key.Down))) return;
+        if(!Fall(_logicalInput.isRaw(LogialInput.Key.Down))) return;
 
         if (_animationController.Update()) return;
 
 
-        if (logicalInput.isRep(LogialInput.Key.Right))
+        if (_logicalInput.isRep(LogialInput.Key.Right))
         {
             if(Translate(true))     return;
         }
-        if (logicalInput.isRep(LogialInput.Key.Left))
+        if (_logicalInput.isRep(LogialInput.Key.Left))
         {
             if(Translate(false))    return;
         }
 
-        if (logicalInput.isTrg(LogialInput.Key.RotR))
+        if (_logicalInput.isTrg(LogialInput.Key.RotR))
         {
             if(Rotate(true))        return;
         }
-        if (logicalInput.isTrg(LogialInput.Key.RotL))
+        if (_logicalInput.isTrg(LogialInput.Key.RotL))
         {
             if(Rotate(false))       return;
         }
 
-        if (logicalInput.isRel(LogialInput.Key.QuickDrop))
+        if (_logicalInput.isRel(LogialInput.Key.QuickDrop))
         {
             QuickDrop();
         }
@@ -246,28 +263,8 @@ public class PlayerController : MonoBehaviour
         return p + new Vector3(Mathf.Sin(theta), Mathf.Cos(theta), 0.0f);
     }
 
-    void UpdateInput()//入力を取り込む
-    {
-        LogialInput.Key inputDev = 0;//デバイス値
-
-        //キー取得
-        for(int i = 0; i< (int)LogialInput.Key.Max; i++)
-        {
-            if (Input.GetKey(key_code_tbl[i]))
-            {
-                inputDev |= (LogialInput.Key)(1 << i);
-                Console.WriteLine(inputDev.ToString());
-            }
-        }
-
-        logicalInput.Update(inputDev);
-    }
-
     void FixedUpdate()
     {
-        //入力を取り込む
-        UpdateInput();
-
         //動かす
         Control();
 
