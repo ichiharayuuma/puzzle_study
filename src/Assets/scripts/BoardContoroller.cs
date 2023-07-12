@@ -31,6 +31,9 @@ public class BoardContoroller : MonoBehaviour
     List<FallData> _falls = new();
     int _fallFrames = 0;
 
+    List<Vector2Int> _erase = new();
+    int _eraseFrames = 0;
+
     private void ClearAll()//全削除
     {
         for(int i = 0; i < BOARD_HEIGHT; i++)
@@ -141,5 +144,100 @@ public class BoardContoroller : MonoBehaviour
         }
 
         return _falls.Count != 0;
+    }
+
+    static readonly Vector2Int[] search_tbl = new Vector2Int[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+    //消すぷよを検索する。同じ色を上下左右に探し、調べたものはフラグを立てて探さない
+    public bool CheckErase()
+    {
+        _eraseFrames = 0;
+        _erase.Clear();
+
+        uint[] isChecked = new uint[BOARD_HEIGHT];
+
+        List<Vector2Int> add_list = new();
+        for(int y = 0; y < BOARD_HEIGHT; y++)
+        {
+            for(int x = 0; x < BOARD_WIDTH; x++)
+            {
+                if ((isChecked[y] & (1u << x)) != 0)
+                {
+                    continue;//検索済み
+                }
+
+                isChecked[y] |= (1u << x);
+
+                int type = _board[y, x];
+                if(type == 0)
+                {
+                    continue;//空間
+                }
+
+                System.Action<Vector2Int> get_connection = null;//再帰的に使うため
+                get_connection = (pos) =>
+                {
+                    add_list.Add(pos);//削除対象にする
+
+                    foreach (Vector2Int d in search_tbl)
+                    {
+                        Vector2Int target = pos + d;
+                        if (target.x < 0 || BOARD_WIDTH <= target.x || target.y < 0 || BOARD_HEIGHT <= target.y)
+                        {
+                            continue;//範囲外
+                        }
+                        if (_board[target.y, target.x] != type)
+                        {
+                            continue;//色違い
+                        }
+                        if ((isChecked[target.y] & (1u << target.x)) != 0)
+                        {
+                            continue;//検索済み
+                        }
+
+                        isChecked[target.y] |= (1u << target.x);
+                        get_connection(target);
+                    }
+                };
+
+                add_list.Clear();
+                get_connection(new Vector2Int(x, y));
+
+                if(4 <= add_list.Count)
+                {
+                    _erase.AddRange(add_list);
+                }
+            }
+        }
+
+        return _erase.Count != 0;
+    }
+
+    public bool Erase()
+    {
+        _eraseFrames++;
+
+        float t = _eraseFrames * Time.deltaTime;
+        t = 1.0f - 10.0f * ((t - 0.1f) * (t - 0.1f) - 0.1f * 0.1f);
+
+        if(t <= 0.0f)//大きさが負なら終了
+        {
+            //データとオブジェクトをけす
+            foreach(Vector2Int d in _erase)
+            {
+                Destroy(_Puyos[d.y, d.x]);
+                _Puyos[d.y, d.x] = null;
+                _board[d.y, d.x] = 0;
+            }
+
+            return false;
+        }
+
+        //モデルの大きさを変える
+        foreach(Vector2Int d in _erase)
+        {
+            _Puyos[d.y, d.x].transform.localScale = Vector3.one * t;
+        }
+
+        return true;
     }
 }
