@@ -34,6 +34,8 @@ public class BoardContoroller : MonoBehaviour
     List<Vector2Int> _erase = new();
     int _eraseFrames = 0;
 
+    uint _addtiveScore = 0;
+
     private void ClearAll()//全削除
     {
         for(int i = 0; i < BOARD_HEIGHT; i++)
@@ -147,13 +149,36 @@ public class BoardContoroller : MonoBehaviour
     }
 
     static readonly Vector2Int[] search_tbl = new Vector2Int[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+
+    //ボーナス計算用テーブル
+    static readonly uint[] chainBonusTbl = new uint[]
+    {
+        0, 8, 16, 32, 64,
+        96, 128, 160, 192, 224,
+        256, 288, 320, 352, 384,
+        416, 448, 480, 512,
+    };
+    static readonly uint[] connectBonusTbl = new uint[]
+    {
+        0, 0, 0, 0, 0, 2, 3, 4, 5, 6, 7,
+    };
+    static readonly uint[] colorBonusTbl = new uint[]
+    {
+        0, 3, 6, 12, 24,
+    };
+
     //消すぷよを検索する。同じ色を上下左右に探し、調べたものはフラグを立てて探さない
-    public bool CheckErase()
+    public bool CheckErase(int chainCount)
     {
         _eraseFrames = 0;
         _erase.Clear();
 
         uint[] isChecked = new uint[BOARD_HEIGHT];
+
+        //得点用
+        int puyoCount = 0;
+        uint colorBits = 0;
+        uint connectBonus = 0;
 
         List<Vector2Int> add_list = new();
         for(int y = 0; y < BOARD_HEIGHT; y++)
@@ -172,6 +197,8 @@ public class BoardContoroller : MonoBehaviour
                 {
                     continue;//空間
                 }
+
+                puyoCount++;
 
                 System.Action<Vector2Int> get_connection = null;//再帰的に使うため
                 get_connection = (pos) =>
@@ -204,9 +231,28 @@ public class BoardContoroller : MonoBehaviour
 
                 if(4 <= add_list.Count)
                 {
+                    connectBonus += connectBonusTbl[System.Math.Min(add_list.Count, connectBonusTbl.Length - 1)];
+                    colorBits |= (1u << type);
                     _erase.AddRange(add_list);
                 }
             }
+        }
+
+        if(chainCount != -1)
+        {
+            //ボーナス計算
+            uint colorNum = 0;
+            for(; 0 < colorBits; colorBits >>= 1)//立っているビットの数を数える
+            {
+                colorNum += (colorBits & 1u);
+            }
+
+            uint colorBonus = colorBonusTbl[System.Math.Min(colorNum, colorBonusTbl.Length - 1)];
+            uint chainBonus = chainBonusTbl[System.Math.Min(chainCount, chainBonusTbl.Length - 1)];
+            uint bonus = System.Math.Max(1, chainBonus + connectBonus + colorBonus);//0でも1が入る
+            _addtiveScore += 10 * (uint)_erase.Count * bonus;
+
+            if (puyoCount == 0) _addtiveScore += 1800;//全消し
         }
 
         return _erase.Count != 0;
@@ -239,5 +285,14 @@ public class BoardContoroller : MonoBehaviour
         }
 
         return true;
+    }
+
+    //得点の受け渡し
+    public uint popScore()
+    {
+        uint score = _addtiveScore;
+        _addtiveScore = 0;
+
+        return score;
     }
 }
