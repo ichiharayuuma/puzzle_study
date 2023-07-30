@@ -35,6 +35,8 @@ public class PlayerController : MonoBehaviour
     int _fallCount = 0;
     int _groundFrame = GROUND_FRAMES;
 
+    uint _addtiveScore = 0;
+
     static readonly Vector2Int[] rotate_tbl = new Vector2Int[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
 
     void Start()
@@ -206,6 +208,8 @@ public class PlayerController : MonoBehaviour
             _fallCount += FALL_COUNT_UNIT;
         }
 
+        if (is_fast) _addtiveScore++;   //â∫Ç…ì¸ÇÍÇƒóéÇøÇÍÇÈÇ»ÇÁÉ|ÉCÉìÉg
+
         return true;
     }
 
@@ -273,5 +277,13 @@ public class PlayerController : MonoBehaviour
         float anim_rate = _animationController.GetNormalized();
         _puyocontrollers[0].SetPos(dy + Interpolate(_position, RotState.Invalid, _last_position, RotState.Invalid, anim_rate));//é≤Ç’ÇÊÇ…ÇÕInvalidÇê›íË
         _puyocontrollers[1].SetPos(dy + Interpolate(_position, _rotate, _last_position, _last_rotate, anim_rate));
+    }
+
+    public uint popScore()
+    {
+        uint score = _addtiveScore;
+        _addtiveScore = 0;
+
+        return score;
     }
 }
