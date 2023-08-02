@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Animations;
 using UnityEngine.SceneManagement;
 
 
@@ -14,6 +15,7 @@ interface IState
         GameOver = 1,
         Falling = 2,
         Erasing = 3,
+        Waiting = 4,
 
         MAX,
 
@@ -39,6 +41,8 @@ public class PlayDirector : MonoBehaviour
     uint _score = 0;
     int _chainCount = -1;
 
+    bool _canSpawn = false;
+
     static readonly KeyCode[] key_code_tbl = new KeyCode[(int)LogialInput.Key.Max]
     {
         KeyCode.RightArrow,
@@ -56,6 +60,7 @@ public class PlayDirector : MonoBehaviour
         new GameOverState(),
         new FallingState(),
         new ErasingState(),
+        new WaitingState(),
     };
 
     class ControlState : IState
@@ -80,7 +85,6 @@ public class PlayDirector : MonoBehaviour
     {
         public IState.E_State Initialize(PlayDirector parent)
         {
-            SceneManager.LoadScene(0);
             return IState.E_State.Unchanged;
         }
 
@@ -111,13 +115,26 @@ public class PlayDirector : MonoBehaviour
                 return IState.E_State.Unchanged;//è¡Ç∑
             }
             parent._chainCount = 0;//òAçΩÇ™ìrêÿÇÍÇΩ
-            return IState.E_State.Control;//è¡ÇπÇ»Ç¢
+            return parent._canSpawn ? IState.E_State.Control : IState.E_State.Waiting;//è¡Ç∑Ç‡ÇÃÇÕÇ»Ç¢
         }
         public IState.E_State Update(PlayDirector parent)
         {
             return parent._boardController.Erase() ? IState.E_State.Unchanged : IState.E_State.Falling;
         }
     }
+
+    class WaitingState : IState
+    {
+        public IState.E_State Initialize(PlayDirector parent)
+        {
+            return IState.E_State.Unchanged;
+        }
+        public IState.E_State Update(PlayDirector parent)
+        {
+            return parent._canSpawn ? IState.E_State.Control : IState.E_State.Unchanged;
+        }
+    }
+
 
     void InitializeState()
     {
@@ -153,6 +170,7 @@ public class PlayDirector : MonoBehaviour
         _playerController.SetLogicalInput(_logicalInput);
 
         _nextQueue.Initialize();
+        UpdateNextView();
         //èÛë‘ÇÃèâä˙âª
         InitializeState();
     }
@@ -204,5 +222,15 @@ public class PlayDirector : MonoBehaviour
     void AddScore(uint score)
     {
         if (0 < score) SetScore(_score + score);
+    }
+
+    public void EnableSpawn(bool enable)
+    {
+        _canSpawn = enable;
+    }
+
+    public bool IsGameOver()
+    {
+        return _current_state == IState.E_State.GameOver;
     }
 }
